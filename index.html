@@ -4,6 +4,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head><body>
 <title>Промоутеры на Баумана</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -40,7 +41,7 @@ button{font:inherit;color:inherit;cursor:pointer}
 .btn.danger{color:var(--bad)}
 .btn.sm{padding:4px 8px;font-size:12px}
 button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
-main{display:grid;grid-template-columns:1fr 360px;min-height:0}
+main{display:grid;grid-template-columns:1fr 360px;min-height:0;overflow:hidden}
 #stage{position:relative;overflow:hidden;touch-action:none;cursor:grab;background:var(--outside);min-height:0}
 .boxbg{fill:var(--land)}
 #stage.drag{cursor:grabbing}
@@ -73,22 +74,24 @@ svg#map{position:absolute;inset:0;width:100%;height:100%;display:block}
 .entr b{font-size:10px;font-weight:700;color:#d62e2e;background:var(--land);border-radius:3px;padding:0 2px}
 .mk{position:absolute;left:0;top:0;width:0;height:0}
 .mk .sc{position:absolute;left:0;top:0;transform-origin:0 0}
-.mk .pin{position:absolute;left:0;top:0;transform:translate(-50%,-50%);width:30px;height:30px;box-sizing:border-box;border-radius:50%;background:var(--panel);border:3px solid var(--none);display:grid;place-items:center;font-size:11px;font-weight:700;color:var(--ink);box-shadow:var(--shadow);cursor:grab;touch-action:none}
+.mk .pin{position:absolute;left:0;top:0;transform:translate(-50%,-50%);width:36px;height:36px;box-sizing:border-box;border-radius:50%;background:var(--panel);border:3px solid var(--none);display:grid;place-items:center;font-size:13px;font-weight:700;color:var(--ink);box-shadow:var(--shadow);cursor:grab;touch-action:none}
 .mk .pin,.mk .nm{pointer-events:auto}
 .mk.drag .pin{cursor:grabbing}
+.mk.movable .pin{cursor:grab;outline:3px dashed var(--accent);outline-offset:3px}
+#regF{flex:1;min-width:0}
 .mk.ok .pin{border-color:var(--ok)} .mk.warn .pin{border-color:var(--warn)} .mk.bad .pin{border-color:var(--bad)}
-.mk .nm{position:absolute;left:19px;top:0;transform:translateY(-50%);font-size:11px;font-weight:600;background:var(--panel);padding:1px 6px;border-radius:5px;box-shadow:0 1px 4px rgba(0,0,0,.12);white-space:nowrap;cursor:pointer}
+.mk .nm{position:absolute;left:22px;top:0;transform:translateY(-50%);font-size:12.5px;font-weight:600;background:var(--panel);padding:1px 6px;border-radius:5px;box-shadow:0 1px 4px rgba(0,0,0,.12);white-space:nowrap;cursor:pointer}
 .mk.comp .pin{width:22px;height:22px;border-radius:5px;transform:translate(-50%,-50%) rotate(45deg);border-color:var(--comp);background:var(--comp)}
 .mk.comp .pin span{transform:rotate(-45deg);color:#fff;font-size:10px}
 .mk.comp .nm{color:var(--comp);left:16px}
 .mk.lm .pin{width:12px;height:12px;border-radius:3px;border:2px solid var(--panel);background:var(--mark);box-shadow:none}
 .mk.lm .nm{left:10px;background:none;box-shadow:none;padding:0;font-size:12px;font-weight:700;text-shadow:0 0 3px var(--land),0 0 3px var(--land),0 0 3px var(--land)}
-.mk.lm.ic .pin,.mk.lm.ph .pin{border-radius:50%;width:50px;height:50px;border:3px solid var(--icon-ring);background:var(--icon-bg) center/cover no-repeat;color:var(--icon-ink);box-shadow:var(--shadow)}
+.mk.lm.ic .pin,.mk.lm.ph .pin{border-radius:50%;width:60px;height:60px;border:3px solid var(--icon-ring);background:var(--icon-bg) center/cover no-repeat;color:var(--icon-ink);box-shadow:var(--shadow)}
 .mk.lm.ic .pin svg{width:30px;height:30px;display:block}
-.mk.lm.ic .nm,.mk.lm.ph .nm{left:0;top:29px;transform:translateX(-50%);font-size:11px;color:var(--icon-ink)}
+.mk.lm.ic .nm,.mk.lm.ph .nm{left:0;top:34px;transform:translateX(-50%);font-size:12.5px;color:var(--icon-ink)}
 .mk.lm.ph .pin{border-radius:12px}
-.mk.lm.cut .pin{width:62px;height:62px;border:0;border-radius:0;background:transparent center bottom/contain no-repeat;box-shadow:none;transform:translate(-50%,-90%);filter:drop-shadow(0 0 1.5px var(--land)) drop-shadow(0 3px 3px rgba(0,0,0,.35))}
-.mk.lm.cut .nm{left:0;top:8px;transform:translateX(-50%);background:none;box-shadow:none;padding:0;font-size:11px;font-weight:700;color:var(--icon-ink);text-shadow:0 0 3px var(--land),0 0 3px var(--land),0 0 3px var(--land)}
+.mk.lm.cut .pin{width:84px;height:84px;border:0;border-radius:0;background:transparent center bottom/contain no-repeat;box-shadow:none;transform:translate(-50%,-90%);filter:drop-shadow(0 0 1.5px var(--land)) drop-shadow(0 3px 3px rgba(0,0,0,.35))}
+.mk.lm.cut .nm{left:0;top:8px;transform:translateX(-50%);background:none;box-shadow:none;padding:0;font-size:12.5px;font-weight:700;color:var(--icon-ink);text-shadow:0 0 3px var(--land),0 0 3px var(--land),0 0 3px var(--land)}
 .mk.lm.cut.sel .pin{outline:0;filter:drop-shadow(0 0 3px var(--accent)) drop-shadow(0 0 2px var(--accent))}
 #marks.tiny .nm{display:none}
 .mk.sel .pin{outline:3px solid var(--accent);outline-offset:2px}
@@ -110,7 +113,9 @@ svg#map{position:absolute;inset:0;width:100%;height:100%;display:block}
 .banner[hidden]{display:none}
 .banner button{background:none;border:1px solid currentColor;color:inherit;border-radius:6px;padding:2px 8px}
 .hint{position:absolute;left:max(12px,env(safe-area-inset-left,0px));bottom:12px;font-size:11px;color:var(--muted);background:var(--panel);padding:4px 8px;border-radius:6px;border:1px solid var(--line);z-index:4}
-aside{border-left:1px solid var(--line);background:var(--panel);display:flex;flex-direction:column;min-height:0}
+aside{border-left:1px solid var(--line);background:var(--panel);display:flex;flex-direction:column;min-height:0;overflow:hidden}
+#side{flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden}
+#side>.list,#side>form.ed{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch}
 .tabs{display:flex;flex-wrap:wrap;gap:2px;padding:10px 12px 0}
 .tab{border:0;background:none;padding:7px 8px;border-radius:8px 8px 0 0;color:var(--muted);font-weight:600;border-bottom:2px solid transparent}
 .tab.on{color:var(--ink);border-bottom-color:var(--accent)}
@@ -145,7 +150,7 @@ form.ed .acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}
   main{grid-template-columns:1fr}
   #stage{height:62vh}
   aside{border-left:0;border-top:1px solid var(--line)}
-  .list,form.ed{overflow:visible}
+  #side,aside{overflow:visible} #side>.list,#side>form.ed{overflow:visible}
   .hint{display:none}
 }
 @media (prefers-reduced-motion:no-preference){.pop{animation:pin .14s ease-out}@keyframes pin{from{opacity:0;margin-top:6px}to{opacity:1;margin-top:0}}}
@@ -1234,24 +1239,42 @@ function buildMarks(){marksEl.innerHTML='';mkEls=[];
   const add=(coll,o,cls,inner,name,bg)=>{if(!hasPos(o))return;const el=document.createElement('div');el.className='mk '+cls+(selected&&selected.id===o.id?' sel':'');
     el.innerHTML=`<div class="sc"><div class="pin"${bg?` style="background-image:url(${bg})"`:''}>${inner}</div>`+(name?`<div class="nm">${esc(name)}</div>`:'')+`</div>`;el.title=o.name||'';
     const [x,y]=toXY(o.lat,o.lon);const m={el,x,y};
+    const movable=coll!=='landmarks'&&placing&&!placing.fromEditor&&placing.coll===coll&&placing.id===o.id;if(movable)el.classList.add('movable');
     let drag=null;
     const down=e=>{e.stopPropagation();e.preventDefault();const r=stage.getBoundingClientRect();drag={sx:e.clientX,sy:e.clientY,moved:0,r};el.setPointerCapture(e.pointerId);el.classList.add('drag')};
     el.addEventListener('pointerdown',down);
     el.addEventListener('pointermove',e=>{if(!drag)return;const dx=e.clientX-drag.sx,dy=e.clientY-drag.sy;drag.moved=Math.max(drag.moved,Math.abs(dx)+Math.abs(dy));
-      if(drag.moved>4){const [px,py]=scr(m.x,m.y);el.style.left=(px+dx)+'px';el.style.top=(py+dy)+'px'}});
+      if(movable&&drag.moved>4){const [px,py]=scr(m.x,m.y);el.style.left=(px+dx)+'px';el.style.top=(py+dy)+'px'}});
     const up=async e=>{if(!drag)return;const d=drag;drag=null;el.classList.remove('drag');
-      if(d.moved<=4){openCard(coll,o.id);return}
+      if(!movable){if(d.moved<=4)openCard(coll,o.id);return}
+      if(d.moved<=4)return;placing=null;showBanner();
       const [px,py]=scr(m.x,m.y);const wx=(px+e.clientX-d.sx-TX)/S,wy=(py+e.clientY-d.sy-TY)/S;const [lat,lon]=fromXY(wx,wy);
       m.x=wx;m.y=wy;selected={coll,id:o.id};await save(coll,{...find(coll,o.id),lat,lon});renderAll()};
     el.addEventListener('pointerup',up);el.addEventListener('pointercancel',()=>{drag=null;el.classList.remove('drag');placeMarks()});
+    if(!movable)el.querySelector('.pin').style.cursor='pointer';
     el.addEventListener('click',e=>e.stopPropagation());
     marksEl.appendChild(el);mkEls.push(m)};
   st.landmarks.forEach(o=>PH[o.icon]?add('landmarks',o,CUT.has(o.icon)?'lm cut':'lm ph','',o.name,PH[o.icon]):ICONS[o.icon]?add('landmarks',o,'lm ic',iconSvg(o.icon),o.name):add('landmarks',o,'lm','',o.name));
   st.competitors.forEach(o=>add('competitors',o,'comp','<span>К</span>',o.name));
-  st.staff.forEach(o=>add('staff',o,regCls(o.regUntil),esc(initials(o.name)),shortName(o.name)));
+  st.staff.filter(regMatch).forEach(o=>add('staff',o,regCls(o.regUntil),esc(initials(o.name)),String(o.name||'').trim()));
   placeMarks()}
+function layoutLabels(){if(marksEl.classList.contains('tiny'))return;
+  const ov=(a,b)=>Math.max(0,Math.min(a.right,b.right)-Math.max(a.left,b.left))*Math.max(0,Math.min(a.bottom,b.bottom)-Math.max(a.top,b.top));
+  const items=mkEls.map(m=>({m,pin:m.el.querySelector('.pin'),nm:m.el.querySelector('.nm')})).filter(x=>x.pin);
+  const pins=items.map(x=>x.pin.getBoundingClientRect());const placed=[];
+  items.forEach((x,i)=>{if(!x.nm||x.m.el.classList.contains('drag'))return;
+    const pr=pins[i];const f=(pr.width/x.pin.offsetWidth)||1;const R=x.pin.offsetWidth/2+4;
+    const isBelow=x.m.el.classList.contains('cut')||x.m.el.classList.contains('ph')||x.m.el.classList.contains('ic');
+    const cut=x.m.el.classList.contains('cut');const below=cut?8:R;
+    const C=[[R,0,'0,-50%'],[-R,0,'-100%,-50%'],[0,-R-(cut?pr.height/f*0.9-R:0),'-50%,-100%'],[0,below,'-50%,0'],[R-4,-R+4,'0,-100%'],[R-4,R-4,'0,0'],[-R+4,-R+4,'-100%,-100%'],[-R+4,R-4,'-100%,0']];
+    const order=isBelow?[3,0,1,2,5,7,4,6]:[0,1,5,4,3,2,7,6];
+    let best=null,bestScore=1e18;
+    for(const k of order){const [l,tp,tr]=C[k];x.nm.style.left=l+'px';x.nm.style.top=tp+'px';x.nm.style.transform=`translate(${tr})`;
+      const r=x.nm.getBoundingClientRect();let s=0;placed.forEach(p=>s+=ov(r,p));pins.forEach((p,j)=>{if(j!==i)s+=ov(r,p)});
+      if(s<bestScore){bestScore=s;best=[k,r]}if(s===0)break}
+    const [l,tp,tr]=C[best[0]];x.nm.style.left=l+'px';x.nm.style.top=tp+'px';x.nm.style.transform=`translate(${tr})`;placed.push(best[1])})}
 const shortName=n=>{const p=String(n||'').trim().split(/\s+/);return p.length>1?p[1]+' '+p[0][0]+'.':p[0]||''};
-function placeMarks(){const f=Math.max(0.6,Math.min(2.2,S/3.5));marksEl.classList.toggle('tiny',f<0.7);for(const m of mkEls){if(m.el.classList.contains('drag'))continue;const [x,y]=scr(m.x,m.y);m.el.style.left=x+'px';m.el.style.top=y+'px';m.el.firstChild.style.transform=`scale(${f})`}}
+function placeMarks(){const f=Math.max(1,Math.min(2.4,S/2.6));marksEl.classList.toggle('tiny',S<0.9);for(const m of mkEls){if(m.el.classList.contains('drag'))continue;const [x,y]=scr(m.x,m.y);m.el.style.left=x+'px';m.el.style.top=y+'px';m.el.firstChild.style.transform=`scale(${f})`}layoutLabels()}
 function placePop(){const el=popWrap.firstElementChild;if(!el||!popup)return;const [x,y]=scr(popup.x,popup.y);el.style.left=x+'px';el.style.top=y+'px'}
 function place(){placeLabels();placeMarks();placePop()}
 
@@ -1265,6 +1288,23 @@ function summary(){const s=st.staff||[];const warn=s.filter(o=>regCls(o.regUntil
   COLL.forEach(c=>document.getElementById('c-'+c).textContent=st[c].length)}
 
 const LABEL={staff:'сотрудника',competitors:'конкурента',landmarks:'ориентир'};
+let regMonth='';
+const MONTHS=['январь','февраль','март','апрель','май','июнь','июль','август','сентябрь','октябрь','ноябрь','декабрь'].map(s=>s[0].toUpperCase()+s.slice(1));
+async function saveBuf(name,buf){const url=URL.createObjectURL(new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));const a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),2000)}
+function exportXlsx(list){if(!window.XLSX){setNote('Не загрузилась библиотека для Excel. Проверьте интернет и обновите страницу.');return}
+  const rows=list.map(o=>({'ФИО':o.name||'','Должность':o.role||'','Где стоит':o.spot||'','Работает до':o.workUntil?fmt(o.workUntil):'','Регистрация до':o.regUntil?fmt(o.regUntil):'',
+    'Телефон':o.phone||'','Адрес регистрации':o.regAddr||'','Где живёт':o.liveAddr||'','Заметка':o.note||'','На карте':hasPos(o)?'да':'нет','Широта':hasPos(o)?o.lat:'','Долгота':hasPos(o)?o.lon:''}));
+  if(!rows.length){setNote('В списке нет сотрудников для выгрузки.');return}
+  const ws=XLSX.utils.json_to_sheet(rows);ws['!cols']=[{wch:28},{wch:20},{wch:26},{wch:13},{wch:15},{wch:18},{wch:22},{wch:22},{wch:30},{wch:9},{wch:11},{wch:11}];
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Сотрудники');
+  const d=new Date(),ds=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  saveBuf(`Промоутеры_Баумана_${ds}${regMonth&&regMonth.length===7?'_с_'+regMonth:''}.xlsx`,XLSX.write(wb,{bookType:'xlsx',type:'array'}))}
+const workDone=o=>{const d=daysTo(o.workUntil);return d!=null&&d<0};
+function regMatch(o){if(!regMonth)return true;if(regMonth==='none')return !o.workUntil;if(regMonth==='bad')return workDone(o);return !!o.workUntil&&o.workUntil.slice(0,7)>=regMonth}
+function monthOptions(){const set=new Set();const d=new Date();const mx=(st.staff||[]).reduce((m,o)=>o.workUntil&&o.workUntil.slice(0,7)>m?o.workUntil.slice(0,7):m,'');for(let i=0;i<60;i++){const x=new Date(d.getFullYear(),d.getMonth()+i,1);const k=x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0');if(i>=12&&k>mx)break;set.add(k)}
+  (st.staff||[]).forEach(o=>{if(o.workUntil)set.add(o.workUntil.slice(0,7))});
+  const cnt=k=>(st.staff||[]).filter(o=>o.workUntil&&o.workUntil.slice(0,7)>=k).length;
+  return [...set].sort().map(k=>{const [y,m]=k.split('-');const n=cnt(k);return `<option value="${k}"${regMonth===k?' selected':''}>${MONTHS[+m-1]} ${y} и дольше (${n})</option>`}).join('')}
 function renderSide(){const side=document.getElementById('side');
   document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('on',b.dataset.t===tab));
   if(tab==='access'){side.innerHTML=`<div class="listhead"><input id="newMail" type="email" placeholder="email коллеги (Google-аккаунт)"><button class="btn primary sm" id="addMail" type="button">Дать доступ</button></div>
@@ -1277,19 +1317,23 @@ function renderSide(){const side=document.getElementById('side');
      for(const c of COLL)for(const o of (data[c]||[])){const {id,...rest}=o;await db.collection(c).doc(id).set(rest);n++}setNote('Импортировано записей: '+n)}catch(e){setNote('Ошибка импорта: '+(e.code||e.message))}};
    return}
   if(editing){side.innerHTML=editorHtml();bindEditor();return}
-  let items=st[tab].slice();const q=query.trim().toLowerCase();
+  let items=st[tab].slice();const q=query.trim().toLowerCase();if(tab==='staff')items=items.filter(regMatch);
   if(q)items=items.filter(o=>JSON.stringify(o).toLowerCase().includes(q));
   if(tab==='staff')items.sort((a,b)=>(a.regUntil||'9999')<(b.regUntil||'9999')?-1:1);else items.sort((a,b)=>String(a.name).localeCompare(String(b.name),'ru'));
-  const head=`<div class="listhead"><input id="q" type="search" placeholder="Поиск" value="${esc(query)}"><button class="btn primary sm" id="addBtn" type="button">+ Добавить ${LABEL[tab]}</button></div>`;
+  const nBad=(st.staff||[]).filter(workDone).length,nNone=(st.staff||[]).filter(o=>!o.workUntil).length;
+  const filt=tab==='staff'?`<div class="listhead" style="padding-top:0"><label for="regF" style="font-size:12px;color:var(--muted);white-space:nowrap">Работает до</label><select id="regF"><option value="">все сроки (${(st.staff||[]).length})</option>${nBad?`<option value="bad"${regMonth==='bad'?' selected':''}>срок уже прошёл (${nBad})</option>`:''}${monthOptions()}<option value="none"${regMonth==='none'?' selected':''}>без даты${nNone?' ('+nNone+')':''}</option></select><button class="btn sm" id="xlBtn" type="button" title="Скачать таблицу Excel">Скачать Excel</button></div>${regMonth?`<div class="note" style="color:var(--muted)">${regMonth.length===7?'Работают как минимум до конца выбранного месяца: ':'Показано: '}${items.length} из ${(st.staff||[]).length}. Остальные скрыты.</div>`:''}`:'';
+  const head=`<div class="listhead"><input id="q" type="search" placeholder="Поиск" value="${esc(query)}"><button class="btn primary sm" id="addBtn" type="button">+ Добавить ${LABEL[tab]}</button></div>`+filt;
   const emptyTxt={staff:'Сотрудников пока нет. Нажмите «Добавить» или кликните по карте.',competitors:'Конкурентов пока нет. Кликните по карте там, где стоит конкурент, и выберите «Конкурент».',landmarks:'Ориентиров пока нет. Кликните по карте и выберите «Ориентир», например «Кольцо» или «ЦУМ».'}[tab];
   side.innerHTML=head+`<div class="list">`+(items.length?items.map(o=>cardHtml(tab,o)).join(''):`<div class="empty">${emptyTxt}</div>`)+`</div>`;
   const qi=document.getElementById('q');qi.oninput=()=>{query=qi.value;renderSide();const n=document.getElementById('q');n.focus();n.setSelectionRange(n.value.length,n.value.length)};
   document.getElementById('addBtn').onclick=()=>startEdit(tab,null);
+  const xb=document.getElementById('xlBtn');if(xb)xb.onclick=()=>exportXlsx(items);
+  const rf=document.getElementById('regF');if(rf)rf.onchange=()=>{regMonth=rf.value;popup=null;renderSide();buildMarks();renderPop()};
   side.querySelectorAll('.card').forEach(c=>c.onclick=e=>{const id=c.dataset.id;const act=e.target.closest('[data-act]');
     if(act){e.stopPropagation();const a=act.dataset.act;if(a==='place')startPlacing(tab,id);if(a==='edit')startEdit(tab,id);return}
     const o=find(tab,id);if(o&&hasPos(o)){centerOn(o);openCard(tab,id)}else startEdit(tab,id)})}
 function cardHtml(coll,o){const sel=selected&&selected.id===o.id?' sel':'';const pos=hasPos(o)?'':`<span class="off">не на карте</span>`;
-  const btn=hasPos(o)?`<button class="btn sm" data-act="place" type="button">Переставить</button> <button class="btn sm" data-act="edit" type="button">Изменить</button>`:`<button class="btn sm primary" data-act="place" type="button">Поставить на карту</button>`;
+  const btn=hasPos(o)?(coll==='landmarks'?'':`<button class="btn sm" data-act="place" type="button">Переместить</button> `)+`<button class="btn sm" data-act="edit" type="button">Изменить</button>`:`<button class="btn sm primary" data-act="place" type="button">Поставить на карту</button>`;
   if(coll==='staff'){const c=regCls(o.regUntil);
     return `<div class="card${sel}" data-id="${esc(o.id)}"><div class="top"><b>${esc(o.name)}</b><span class="st ${c}">${o.regUntil?'до '+fmt(o.regUntil):'нет даты'}</span></div>
      <div class="meta"><span>${esc(o.role||'—')}</span><span>${esc(o.spot||'место не указано')}</span>${o.workUntil?`<span>работает до ${fmt(o.workUntil)}</span>`:''}${pos}</div>
@@ -1297,7 +1341,7 @@ function cardHtml(coll,o){const sel=selected&&selected.id===o.id?' sel':'';const
   return `<div class="card${sel}" data-id="${esc(o.id)}"><div class="top"><b>${esc(o.name)}</b>${pos}</div>${o.note?`<div class="meta">${esc(o.note)}</div>`:''}<div class="meta"><span class="spacer"></span>${btn}</div></div>`}
 
 function editorHtml(){const {coll,o,isNew}=editing;const del=!isNew?`<button class="btn danger" type="button" id="delBtn">${confirmDel===o.id?'Точно удалить? Нажмите ещё раз':'Удалить'}</button>`:'';
-  const posTxt=hasPos(o)?`<span class="mono">${o.lat.toFixed(5)}, ${o.lon.toFixed(5)}</span> <button class="btn sm" type="button" id="mvBtn">Переставить</button> <button class="btn sm" type="button" id="unBtn">Убрать с карты</button>`:`не на карте <button class="btn sm primary" type="button" id="mvBtn">Поставить на карту</button>`;
+  const posTxt=hasPos(o)?`<span class="mono">${o.lat.toFixed(5)}, ${o.lon.toFixed(5)}</span>`+(coll==='landmarks'?' · ориентиры закреплены и не перемещаются':` <button class="btn sm" type="button" id="mvBtn">Переместить</button> <button class="btn sm" type="button" id="unBtn">Убрать с карты</button>`):`не на карте <button class="btn sm primary" type="button" id="mvBtn">Поставить на карту</button>`;
   let f='';
   if(coll==='staff')f=`
     <label>ФИО<input id="f-name" required value="${esc(o.name)}"></label>
@@ -1332,8 +1376,8 @@ function startEdit(coll,id,pos){tab=coll;confirmDel=null;placing=null;showBanner
   const o=id?{...find(coll,id)}:{id:newId(),name:''};if(pos){o.lat=pos[0];o.lon=pos[1]}
   editing={coll,o,isNew:!id};popup=null;renderAll();setTimeout(()=>{const n=document.getElementById('f-name');if(n&&!n.value)n.focus()},0)}
 function startPlacing(coll,id,fromEditor){placing={coll,id,fromEditor};popup=null;stage.classList.add('placing');
-  const o=fromEditor?editing.o:find(coll,id);showBanner(`Нажмите на карту, где стоит: ${esc(o&&o.name||'новая точка')}`);renderPop()}
-function showBanner(html){const b=document.getElementById('banner');if(!html){b.hidden=true;stage.classList.remove('placing');return}
+  const o=fromEditor?editing.o:find(coll,id);showBanner(fromEditor?`Нажмите на карту, где стоит: ${esc(o&&o.name||'новая точка')}`:`Перетащите метку «${esc(o&&o.name||'')}» или нажмите на карту, где она теперь стоит`);renderPop();buildMarks()}
+function showBanner(html){const b=document.getElementById('banner');if(!html){const was=!b.hidden;b.hidden=true;stage.classList.remove('placing');if(was)buildMarks();return}
   b.innerHTML=`<span>${html}</span><button type="button" id="bCancel">Отмена</button>`;b.hidden=false;document.getElementById('bCancel').onclick=()=>{placing=null;showBanner()}}
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){if(placing){placing=null;showBanner()}else if(popup){popup=null;renderPop()}}});
 
@@ -1360,8 +1404,8 @@ function openCard(coll,id){const o=find(coll,id);if(!o||!hasPos(o))return;select
     <span>Телефон</span><span class="mono">${esc(o.phone||'—')}</span></div>`}
   else body=`<div class="sub">${coll==='competitors'?'Конкурент':'Ориентир'}</div><div class="rows">${o.spot?`<span>Где</span><span>${esc(o.spot)}</span>`:''}${o.note?`<span>Заметка</span><span>${esc(o.note)}</span>`:''}${o.seen?`<span>Замечен</span><span>${fmt(o.seen)}</span>`:''}</div>`;
   popup={x,y,html:`<button class="x" type="button" data-pa="close" aria-label="Закрыть">×</button><h3>${esc(o.name)}</h3>${body}
-    <div class="acts"><button class="btn sm" type="button" data-pa="edit">Изменить</button><button class="btn sm" type="button" data-pa="move">Переставить</button><button class="btn sm danger" type="button" data-pa="del">${confirmDel===id?'Точно удалить?':'Удалить'}</button></div>`,
-    act:async a=>{if(a==='close'){popup=null;selected=null;renderAll()}if(a==='edit')startEdit(coll,id);if(a==='move')startPlacing(coll,id);
+    <div class="acts"><button class="btn sm" type="button" data-pa="edit">Изменить</button>${coll==='landmarks'?'':'<button class="btn sm" type="button" data-pa="move">Переместить</button>'}<button class="btn sm danger" type="button" data-pa="del">${confirmDel===id?'Точно удалить?':'Удалить'}</button></div>`,
+    act:async a=>{if(a==='close'){popup=null;selected=null;renderAll()}if(a==='edit')startEdit(coll,id);if(a==='move'&&coll!=='landmarks')startPlacing(coll,id);
       if(a==='del'){if(confirmDel!==id){confirmDel=id;openCard(coll,id);return}confirmDel=null;popup=null;selected=null;await remove(coll,id);renderAll()}}};
   tab=coll;if(!editing)renderSide();buildMarks();renderPop()}
 function renderPop(){popWrap.innerHTML='';if(!popup)return;const el=document.createElement('div');el.className='pop';el.innerHTML=popup.html;
