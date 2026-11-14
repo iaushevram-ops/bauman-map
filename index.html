@@ -165,6 +165,11 @@ main.collapsed>aside{display:none}
 .chk{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--ink);cursor:pointer;white-space:nowrap}
 .chk input{width:auto;margin:0}
 .listhead.wrap{flex-wrap:wrap;row-gap:6px}
+@keyframes mkflash{0%,100%{opacity:1}35%{opacity:.08}}
+.mk .pin.flash{animation:mkflash .7s ease-in-out 1}
+@media (prefers-reduced-motion:no-preference){
+  @keyframes mkhop{0%,100%{translate:0 0}25%{translate:0 -16px}45%{translate:0 0}62%{translate:0 -7px}78%{translate:0 0}}
+  .mk .sc.hop{animation:mkhop .9s ease-out 1}}
 .when{display:flex;align-items:center;gap:4px;flex-wrap:wrap}
 .whenlbl{font-size:12px;color:var(--muted);margin-right:2px}
 .when input,.when select{width:auto;padding:4px 6px;font-variant-numeric:tabular-nums}
@@ -1301,10 +1306,10 @@ function placeLabels(){for(const o of lblEls){const {b}=o;let show=true;
     if(b.c==='T'){o.el.style.transform=`translate(${x-7}px,${y-8}px)`;continue}
     o.el.style.transform=`translate(${x}px,${y}px) rotate(${b.ang}rad) translate(${-o.w/2}px,-50%)`}}
 function buildMarks(){marksEl.innerHTML='';mkEls=[];
-  const add=(coll,o,cls,inner,name,bg)=>{if(!hasPos(o))return;const el=document.createElement('div');el.className='mk '+cls+(selected&&selected.id===o.id?' sel':'');
+  const add=(coll,o,cls,inner,name,bg)=>{if(!hasPos(o))return;const el=document.createElement('div');el.className='mk '+cls+(selected&&selected.id===o.id?' sel':'');el.dataset.id=o.id;if(coll==='staff'){const dd=daysTo(o.regUntil);if(dd!=null&&dd>=0&&dd<=14)el.dataset.soon='1'}
     el.innerHTML=`<div class="sc"><div class="pin"${bg?` style="background-image:url(${bg})"`:''}>${inner}</div>`+(name?`<div class="nm">${esc(name)}</div>`:'')+`</div>`;el.title=o.name||'';
     const [x,y]=toXY(o.lat,o.lon);const m={el,x,y};
-    const movable=coll!=='landmarks'&&placing&&!placing.fromEditor&&placing.coll===coll&&placing.id===o.id;if(movable)el.classList.add('movable');
+    const movable=coll!=='landmarks'&&((placing&&!placing.fromEditor&&placing.coll===coll&&placing.id===o.id)||(coll==='staff'&&!!pend&&pend.id===o.id));if(movable)el.classList.add('movable');
     let drag=null;
     const down=e=>{e.stopPropagation();e.preventDefault();const r=stage.getBoundingClientRect();drag={sx:e.clientX,sy:e.clientY,moved:0,r};el.setPointerCapture(e.pointerId);el.classList.add('drag')};
     el.addEventListener('pointerdown',down);
@@ -1322,7 +1327,7 @@ function buildMarks(){marksEl.innerHTML='';mkEls=[];
   st.landmarks.forEach(o=>PH[o.icon]?add('landmarks',o,CUT.has(o.icon)?'lm cut':'lm ph','',o.name,PH[o.icon]):ICONS[o.icon]?add('landmarks',o,'lm ic',iconSvg(o.icon),o.name):add('landmarks',o,'lm','',o.name));
   st.competitors.forEach(o=>add('competitors',o,'comp','<span>К</span>',o.name));
   st.staff.filter(staffVisible).forEach(o=>add('staff',o,regCls(o.regUntil),esc(initials(o.name)),firstName(o.name)));
-  placeMarks()}
+  placeMarks();if(!hopped&&st.staff.length){hopped=true;setTimeout(hopSoon,600)}}
 function layoutLabels(){if(marksEl.classList.contains('tiny'))return;
   const ov=(a,b)=>Math.max(0,Math.min(a.right,b.right)-Math.max(a.left,b.left))*Math.max(0,Math.min(a.bottom,b.bottom)-Math.max(a.top,b.top));
   const items=mkEls.map(m=>({m,pin:m.el.querySelector('.pin'),nm:m.el.querySelector('.nm')})).filter(x=>x.pin);
@@ -1461,14 +1466,14 @@ function bindEditor(){const {coll}=editing;
 
 function startEdit(coll,id,pos){if(!perm.edit)return;if(sideCollapsed)setCollapsed(false);tab=coll;confirmDel=null;placing=null;showBanner();
   const o=id?{...find(coll,id)}:{id:newId(),name:''};if(pos){o.lat=pos[0];o.lon=pos[1]}
-  editing={coll,o,isNew:!id};popup=null;renderAll();setTimeout(()=>{const n=document.getElementById('f-name');if(n&&!n.value)n.focus()},0)}
+  editing={coll,o,isNew:!id};popup=null;renderAll();if(id)flashMark(id);setTimeout(()=>{const n=document.getElementById('f-name');if(n&&!n.value)n.focus()},0)}
 function startPlacing(coll,id,fromEditor){placing={coll,id,fromEditor};popup=null;stage.classList.add('placing');
-  const o=fromEditor?editing.o:find(coll,id);showBanner(fromEditor?`Нажмите на карту, где стоит: ${esc(o&&o.name||'новая точка')}`:`Перетащите метку «${esc(o&&o.name||'')}» или нажмите на карту, где она теперь стоит`);renderPop();buildMarks()}
+  const o=fromEditor?editing.o:find(coll,id);showBanner(fromEditor?`Нажмите на карту, где стоит: ${esc(o&&o.name||'новая точка')}`:`Перетащите метку «${esc(o&&o.name||'')}» или нажмите на карту, где она теперь стоит`);renderPop();buildMarks();flashMark(id)}
 function showBanner(html){const b=document.getElementById('banner');if(!html){const was=!b.hidden;b.hidden=true;stage.classList.remove('placing');if(was)buildMarks();return}
   b.innerHTML=`<span>${html}</span><button type="button" id="bCancel">Отмена</button>`;b.hidden=false;document.getElementById('bCancel').onclick=()=>{placing=null;showBanner()}}
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){if(pend){pend=null;document.getElementById('banner').hidden=true;recalc();renderAll()}else if(placing){placing=null;showBanner()}else if(popup){popup=null;renderPop()}}});
 
-async function mapClick(x,y){const [lat,lon]=fromXY(x,y);
+async function mapClick(x,y){const [lat,lon]=fromXY(x,y);if(pend){askMode(pend.id,{lat,lon});return}
   if(placing){const p=placing;placing=null;showBanner();
     if(p.fromEditor){editing.o.lat=lat;editing.o.lon=lon;renderAll();return}
     const o=find(p.coll,p.id);if(o){selected={coll:p.coll,id:o.id};if(p.coll==='staff'){askMode(o.id,{lat,lon});return}await save(p.coll,{...o,lat,lon});renderAll()}return}
@@ -1522,6 +1527,12 @@ document.getElementById('planMonth').onchange=e=>{const k=e.target.value,t=isoD(
 document.getElementById('planDate').value=planDay;monthSel();
 document.getElementById('sideBtn').onclick=()=>setCollapsed(!sideCollapsed);
 if(sideCollapsed)setCollapsed(true);
+var hopped=false;
+function flashMark(id){requestAnimationFrame(()=>{const el=[...marksEl.children].find(m=>m.dataset.id===id);const pin=el&&el.querySelector('.pin');if(!pin)return;
+  pin.classList.remove('flash');void pin.offsetWidth;pin.classList.add('flash');pin.addEventListener('animationend',()=>pin.classList.remove('flash'),{once:true})})}
+function hopSoon(){marksEl.querySelectorAll('.mk[data-soon] .sc').forEach(sc=>{sc.classList.remove('hop');void sc.offsetWidth;sc.classList.add('hop');
+  sc.addEventListener('animationend',()=>sc.classList.remove('hop'),{once:true})})}
+setInterval(hopSoon,120000);
 buildLabels();home();renderAll();
 </script>
 
