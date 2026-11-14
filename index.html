@@ -155,12 +155,33 @@ form.ed .acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}
   #side,aside{overflow:visible} #side>.list,#side>form.ed{overflow:visible}
   .hint{display:none}
 }
+main.collapsed{grid-template-columns:1fr}
+main.collapsed>aside{display:none}
+#sideBtn{position:absolute;top:12px;right:max(12px,env(safe-area-inset-right,0px));z-index:4;box-shadow:var(--shadow);width:36px;height:36px;padding:0;display:grid;place-items:center;border-radius:9px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;flex:none}
+.seg button{border:0;background:var(--panel);padding:4px 9px;font-size:12px;font-weight:500;color:var(--muted)}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+.chk{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--ink);cursor:pointer;white-space:nowrap}
+.chk input{width:auto;margin:0}
+.listhead.wrap{flex-wrap:wrap;row-gap:6px}
+.when{display:flex;align-items:center;gap:4px;flex-wrap:wrap}
+.whenlbl{font-size:12px;color:var(--muted);margin-right:2px}
+.when input,.when select{width:auto;padding:4px 6px;font-variant-numeric:tabular-nums}
+.when.other input{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.plan{font-size:12px;display:grid;gap:2px;margin:-4px 0 10px}
+.plan .pl{display:flex;align-items:center;gap:6px}
+.plan .pl.cur{font-weight:600}
+.plan .pl a{color:var(--accent);cursor:pointer;text-decoration:underline;text-underline-offset:2px}
+.plan .pl button{border:0;background:none;color:var(--muted);padding:0 4px;font-size:15px;line-height:1}
+.banner .bm{display:flex;gap:6px;flex-wrap:wrap}
 @media (prefers-reduced-motion:no-preference){.pop{animation:pin .14s ease-out}@keyframes pin{from{opacity:0;margin-top:6px}to{opacity:1;margin-top:0}}}
 </style>
 
 <div class="app">
   <header>
     <h1>Промоутеры · Баумана</h1>
+    <div class="when" id="when" role="group" aria-label="Расстановка на дату"><span class="whenlbl">Расстановка на</span><button class="btn sm" id="dPrev" type="button" aria-label="Предыдущий день">◀</button><input id="planDate" type="date" aria-label="Дата"><button class="btn sm" id="dNext" type="button" aria-label="Следующий день">▶</button><select id="planMonth" aria-label="Месяц"></select><button class="btn sm" id="dToday" type="button">Сегодня</button></div>
     <div class="sum" id="sum"></div>
     <div class="spacer"></div>
     <span id="who" class="sum"></span><button class="btn" id="authBtn" type="button">Войти через Google</button>
@@ -172,6 +193,7 @@ form.ed .acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}
       <div id="ov"><div id="labels"></div><div id="marks"></div><div id="popWrap"></div></div>
       <div class="banner" id="banner" hidden></div>
       <div class="zoom"><button type="button" id="zin" aria-label="Приблизить">+</button><button type="button" id="zout" aria-label="Отдалить">−</button><button type="button" id="zhome" aria-label="К Баумана" style="font-size:13px">⌂</button></div>
+      <button class="btn" id="sideBtn" type="button" aria-controls="side" aria-expanded="true" title="Свернуть список" aria-label="Свернуть список"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7l5 5-5 5M20 7l-5 5 5 5"/></svg></button>
       <div class="hint" id="hint">Нажмите на пустое место карты, чтобы добавить точку · карта © участники OpenStreetMap</div>
     </div>
     <aside>
@@ -1162,7 +1184,7 @@ document.getElementById('zin').onclick=()=>{const r=stage.getBoundingClientRect(
 document.getElementById('zout').onclick=()=>{const r=stage.getBoundingClientRect();zoomAt(1/1.4,r.width/2,r.height/2)};
 document.getElementById('zhome').onclick=home;
 const ptrs=new Map();let moved=0,pinch=null,downT=null;
-stage.addEventListener('pointerdown',e=>{if(e.target.closest('.pop,.mk,.zoom,.banner'))return;stage.setPointerCapture(e.pointerId);ptrs.set(e.pointerId,[e.clientX,e.clientY]);moved=0;downT=e.target;
+stage.addEventListener('pointerdown',e=>{if(e.target.closest('.pop,.mk,.zoom,.banner,#sideBtn'))return;stage.setPointerCapture(e.pointerId);ptrs.set(e.pointerId,[e.clientX,e.clientY]);moved=0;downT=e.target;
   if(ptrs.size===2){const [a,b]=[...ptrs.values()];pinch={d:Math.hypot(a[0]-b[0],a[1]-b[1])}}stage.classList.add('drag')});
 stage.addEventListener('pointermove',e=>{if(!ptrs.has(e.pointerId))return;const prev=ptrs.get(e.pointerId);const cur=[e.clientX,e.clientY];ptrs.set(e.pointerId,cur);
   if(ptrs.size===1){TX+=cur[0]-prev[0];TY+=cur[1]-prev[1];moved+=Math.abs(cur[0]-prev[0])+Math.abs(cur[1]-prev[1]);apply()}
@@ -1174,7 +1196,25 @@ new ResizeObserver(()=>place()).observe(stage);
 
 // ---- data
 const COLL=['staff','competitors','landmarks'];
+const raw={staff:[],competitors:[],landmarks:[]};
 const st={staff:[],competitors:[],landmarks:[]};
+// Placement plan: a staff doc keeps its base lat/lon plus plan:[{from:'YYYY-MM-DD',lat,lon}|{from,off:true}].
+// The position on a day is the latest plan entry with from <= day (base position before the first entry).
+const isoD=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+let planDay=isoD(new Date()),pend=null;
+const nextMonth=iso=>{const [y,m]=iso.split('-').map(Number);return isoD(new Date(y,m,1))};
+const addDays=(iso,n)=>{const [y,m,d]=iso.split('-').map(Number);return isoD(new Date(y,m-1,d+n))};
+const planOf=r=>(Array.isArray(r&&r.plan)?r.plan:[]).filter(e=>e&&/^\d{4}-\d{2}-\d{2}$/.test(e.from)).slice().sort((a,b)=>a.from<b.from?-1:a.from>b.from?1:0);
+function posOn(r,day){let p=typeof r.lat==='number'&&typeof r.lon==='number'?{lat:r.lat,lon:r.lon}:null;
+  for(const e of planOf(r)){if(e.from>day)break;p=e.off||typeof e.lat!=='number'?null:{lat:e.lat,lon:e.lon}}return p}
+const samePos=(a,b)=>(!a&&!b)||(!!a&&!!b&&Math.abs(a.lat-b.lat)<1e-7&&Math.abs(a.lon-b.lon)<1e-7);
+function eff(r){const o={...r};delete o.lat;delete o.lon;const p=posOn(r,planDay);if(p){o.lat=p.lat;o.lon=p.lon}return o}
+function recalc(){st.staff=raw.staff.map(eff);st.competitors=raw.competitors;st.landmarks=raw.landmarks}
+// mode 'on': from day until the next planned change; 'month': from day to the end of that month
+function setPosFrom(r,day,pos,mode){let plan=planOf(r);
+  if(mode==='month'){const end=nextMonth(day);if(!plan.some(e=>e.from>day&&e.from<=end)){const prev=posOn(r,end);if(!samePos(prev,pos))plan.push(prev?{from:end,lat:prev.lat,lon:prev.lon}:{from:end,off:true})}}
+  plan=plan.filter(e=>e.from!==day);plan.push(pos?{from:day,lat:pos.lat,lon:pos.lon}:{from:day,off:true});
+  plan.sort((a,b)=>a.from<b.from?-1:1);r.plan=plan;return r}
 let db=null,tab='staff',editing=null,popup=null,placing=null,selected=null,confirmDel=null,query='';
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const newId=()=>'p'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
@@ -1199,10 +1239,27 @@ async function save(coll,obj){const {id,...data}=obj;
 async function remove(coll,id){if(!db){setNote('Войдите через Google, чтобы удалять.');return}
   try{await db.collection(coll).doc(id).delete()}catch(e){setNote('Не удалось удалить ('+(e.code||'ошибка')+').')}}
 const find=(coll,id)=>(st[coll]||[]).find(x=>x.id===id);
+const findRaw=(coll,id)=>raw[coll].find(x=>x.id===id);
+async function savePos(id,pos,mode){const r=findRaw('staff',id);if(!r)return false;return save('staff',setPosFrom({...r},planDay,pos,mode))}
+async function saveStaffForm(n,mode){const r=findRaw('staff',n.id);const base=r?{...r}:{id:n.id};FIELDS.staff.forEach(k=>{base[k]=n[k]??''});
+  const pos=hasPos(n)?{lat:n.lat,lon:n.lon}:null;const old=r?posOn(r,planDay):null;
+  if(!samePos(pos,old))setPosFrom(base,planDay,pos,mode==='month'?'month':'on');return save('staff',base)}
+function askMode(id,pos){const o=find('staff',id);if(!o)return;pend={id,pos};
+  const i=st.staff.findIndex(x=>x.id===id);if(i>=0){const c={...st.staff[i]};if(pos){c.lat=pos.lat;c.lon=pos.lon}else{delete c.lat;delete c.lon}st.staff[i]=c}
+  renderAll();
+  const later=planOf(findRaw('staff',id)).filter(e=>e.from>planDay).map(e=>fmt(e.from));
+  const b=document.getElementById('banner');
+  b.innerHTML=`<span>Новое место для «${esc(o.name)}» с ${fmt(planDay)}${later.length?`. Перестановка с ${later.join(', ')} останется`:''}</span><span class="bm"><button type="button" data-m="month">Только до конца ${MONTHS_IN[+planDay.slice(5,7)-1]}</button><button type="button" data-m="on">С ${fmt(planDay)} и дальше</button><button type="button" data-m="x">Отмена</button></span>`;
+  b.hidden=false;
+  b.querySelectorAll('[data-m]').forEach(x=>x.onclick=async()=>{const md=x.dataset.m;const p=pend;pend=null;b.hidden=true;
+    if(md!=='x'&&p)await savePos(p.id,p.pos,md);recalc();renderAll()})}
+function planHtml(id){const pl=planOf(findRaw('staff',id));if(!pl.length)return '';let cur=null;pl.forEach(e=>{if(e.from<=planDay)cur=e.from});
+  return `<div class="plan"><span class="sub" style="margin:0">Перестановки по датам</span>${pl.map(e=>`<div class="pl${e.from===cur?' cur':''}"><a data-pa="go:${e.from}">с ${fmt(e.from)}</a><span>${e.off?'убран с карты':'новое место'}${e.from===cur?' · сейчас на карте':''}</span>${perm.move?`<button type="button" data-pa="rmplan:${e.from}" title="Отменить эту перестановку" aria-label="Отменить перестановку с ${fmt(e.from)}">×</button>`:''}</div>`).join('')}</div>`}
+const planChip=id=>{const pl=planOf(findRaw('staff',id));return pl.length?`<span>перестановки: ${pl.map(e=>fmt(e.from).slice(0,5)).join(', ')}</span>`:''};
 function subscribe(){unsubs.forEach(u=>u());unsubs=[];
   const list=fbUser&&fbUser.email===OWNER_EMAIL?[...COLL,'allowed']:COLL;
   list.forEach(c=>{let t=setTimeout(()=>setNote('Данные пока не загрузились, проверьте соединение.'),10000);
-    unsubs.push(db.collection(c).onSnapshot(s=>{if(!s.metadata.fromCache&&t){clearTimeout(t);t=null;setNote('')}const k=c==='allowed'?'access':c;st[k]=s.docs.map(d=>({id:d.id,...d.data()}));renderAll()},
+    unsubs.push(db.collection(c).onSnapshot(s=>{if(!s.metadata.fromCache&&t){clearTimeout(t);t=null;setNote('')}const k=c==='allowed'?'access':c;const rows=s.docs.map(d=>({id:d.id,...d.data()}));if(k in raw)raw[k]=rows;else st[k]=rows;recalc();renderAll()},
       e=>{if(t){clearTimeout(t);t=null}setNote(e.code==='permission-denied'?'У вашего аккаунта ('+fbUser.email+') нет доступа. Попросите владельца карты добавить этот email.':'Ошибка загрузки данных: '+e.code)}))})}
 (function initFirebase(){
   if(!window.firebase||FIREBASE_CONFIG.apiKey==='ВСТАВЬТЕ'){setNote('Firebase не настроен: вставьте конфигурацию в index.html (см. инструкцию).');return}
@@ -1218,7 +1275,7 @@ function subscribe(){unsubs.forEach(u=>u());unsubs=[];
       else{perm={edit:false,move:false};unsubs.forEach(x=>x());unsubs=[];
         let started=false;if(window.__meUnsub)window.__meUnsub();
         window.__meUnsub=db.collection('allowed').doc(u.email.toLowerCase()).onSnapshot(d=>{const a=d.exists?d.data():{};perm={edit:a.canEdit===true,move:a.canMove===true};if(!d.exists){setNote('У вашего аккаунта ('+u.email+') нет доступа. Попросите владельца карты добавить этот email.');return}if(!started){started=true;subscribe()}if(!perm.move)placing=null;renderAll()},e=>setNote('У вашего аккаунта ('+u.email+') нет доступа. Попросите владельца карты добавить этот email.'));}
-    }else{perm={edit:false,move:false};if(window.__meUnsub){window.__meUnsub();window.__meUnsub=null}unsubs.forEach(x=>x());unsubs=[];db=null;COLL.forEach(c=>st[c]=[]);st.access=[];setNote('Войдите через Google, чтобы увидеть сотрудников.');renderAll()}})})();
+    }else{perm={edit:false,move:false};if(window.__meUnsub){window.__meUnsub();window.__meUnsub=null}unsubs.forEach(x=>x());unsubs=[];db=null;COLL.forEach(c=>{st[c]=[];raw[c]=[]});st.access=[];setNote('Войдите через Google, чтобы увидеть сотрудников.');renderAll()}})})();
 
 // ---- render
 const labelsEl=document.getElementById('labels'),marksEl=document.getElementById('marks'),popWrap=document.getElementById('popWrap');
@@ -1257,14 +1314,14 @@ function buildMarks(){marksEl.innerHTML='';mkEls=[];
       if(!movable){if(d.moved<=4)openCard(coll,o.id);return}
       if(d.moved<=4)return;placing=null;showBanner();
       const [px,py]=scr(m.x,m.y);const wx=(px+e.clientX-d.sx-TX)/S,wy=(py+e.clientY-d.sy-TY)/S;const [lat,lon]=fromXY(wx,wy);
-      m.x=wx;m.y=wy;selected={coll,id:o.id};await save(coll,{...find(coll,o.id),lat,lon});renderAll()};
+      m.x=wx;m.y=wy;selected={coll,id:o.id};if(coll==='staff'){askMode(o.id,{lat,lon});return}await save(coll,{...find(coll,o.id),lat,lon});renderAll()};
     el.addEventListener('pointerup',up);el.addEventListener('pointercancel',()=>{drag=null;el.classList.remove('drag');placeMarks()});
     if(!movable)el.querySelector('.pin').style.cursor='pointer';
     el.addEventListener('click',e=>e.stopPropagation());
     marksEl.appendChild(el);mkEls.push(m)};
   st.landmarks.forEach(o=>PH[o.icon]?add('landmarks',o,CUT.has(o.icon)?'lm cut':'lm ph','',o.name,PH[o.icon]):ICONS[o.icon]?add('landmarks',o,'lm ic',iconSvg(o.icon),o.name):add('landmarks',o,'lm','',o.name));
   st.competitors.forEach(o=>add('competitors',o,'comp','<span>К</span>',o.name));
-  st.staff.filter(regMatch).forEach(o=>add('staff',o,regCls(o.regUntil),esc(initials(o.name)),firstName(o.name)));
+  st.staff.filter(staffVisible).forEach(o=>add('staff',o,regCls(o.regUntil),esc(initials(o.name)),firstName(o.name)));
   placeMarks()}
 function layoutLabels(){if(marksEl.classList.contains('tiny'))return;
   const ov=(a,b)=>Math.max(0,Math.min(a.right,b.right)-Math.max(a.left,b.left))*Math.max(0,Math.min(a.bottom,b.bottom)-Math.max(a.top,b.top));
@@ -1299,6 +1356,18 @@ function summary(){const s=st.staff||[];const warn=s.filter(o=>regCls(o.regUntil
 let perm={edit:true,move:true};
 const LABEL={staff:'сотрудника',competitors:'конкурента',landmarks:'ориентир'};
 let regMonth='';
+let regSort='asc',hideExp=false,sideCollapsed=false;
+try{const v=JSON.parse(localStorage.getItem('kzn-staff-view')||'{}');if(v.regSort==='desc')regSort='desc';hideExp=!!v.hideExp;sideCollapsed=!!v.collapsed}catch(e){}
+function storeView(){try{localStorage.setItem('kzn-staff-view',JSON.stringify({regSort,hideExp,collapsed:sideCollapsed}))}catch(e){}}
+// registration expired as of the date the map is showing
+const regExpired=o=>!!o.regUntil&&o.regUntil<planDay;
+const staffVisible=o=>regMatch(o)&&!(hideExp&&regExpired(o));
+function regSortFn(a,b){const x=a.regUntil||'',y=b.regUntil||'';if(!x!==!y)return x?-1:1;
+  if(x===y)return String(a.name).localeCompare(String(b.name),'ru');return (x<y?-1:1)*(regSort==='desc'?-1:1)}
+function setCollapsed(v){sideCollapsed=v;document.querySelector('main').classList.toggle('collapsed',v);
+  const b=document.getElementById('sideBtn');b.innerHTML=v?'<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 7l-5 5 5 5M15 7l5 5-5 5"/></svg>':'<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7l5 5-5 5M20 7l-5 5 5 5"/></svg>';b.title=v?'Показать список':'Свернуть список';b.setAttribute('aria-label',b.title);b.setAttribute('aria-expanded',String(!v));
+  storeView();requestAnimationFrame(()=>apply())}
+const MONTHS_IN=['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
 const MONTHS=['январь','февраль','март','апрель','май','июнь','июль','август','сентябрь','октябрь','ноябрь','декабрь'].map(s=>s[0].toUpperCase()+s.slice(1));
 async function saveBuf(name,buf){const url=URL.createObjectURL(new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));const a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),2000)}
 function exportXlsx(list){if(!window.XLSX){setNote('Не загрузилась библиотека для Excel. Проверьте интернет и обновите страницу.');return}
@@ -1308,7 +1377,7 @@ function exportXlsx(list){if(!window.XLSX){setNote('Не загрузилась 
   const ws=XLSX.utils.json_to_sheet(rows);ws['!cols']=[{wch:28},{wch:20},{wch:26},{wch:13},{wch:15},{wch:18},{wch:22},{wch:22},{wch:30},{wch:9},{wch:11},{wch:11}];
   const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Сотрудники');
   const d=new Date(),ds=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
-  saveBuf(`Промоутеры_Баумана_${ds}${regMonth&&regMonth.length===7?'_с_'+regMonth:''}.xlsx`,XLSX.write(wb,{bookType:'xlsx',type:'array'}))}
+  saveBuf(`Промоутеры_Баумана_на_${planDay}${regMonth&&regMonth.length===7?'_с_'+regMonth:''}.xlsx`,XLSX.write(wb,{bookType:'xlsx',type:'array'}))}
 const workDone=o=>{const d=daysTo(o.workUntil);return d!=null&&d<0};
 function regMatch(o){if(!regMonth)return true;if(regMonth==='none')return !o.workUntil;if(regMonth==='bad')return workDone(o);return !!o.workUntil&&o.workUntil.slice(0,7)>=regMonth}
 function monthOptions(){const set=new Set();const d=new Date();const mx=(st.staff||[]).reduce((m,o)=>o.workUntil&&o.workUntil.slice(0,7)>m?o.workUntil.slice(0,7):m,'');for(let i=0;i<60;i++){const x=new Date(d.getFullYear(),d.getMonth()+i,1);const k=x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0');if(i>=12&&k>mx)break;set.add(k)}
@@ -1332,17 +1401,19 @@ function renderSide(){const side=document.getElementById('side');
      for(const c of COLL)for(const o of (data[c]||[])){const {id,...rest}=o;await db.collection(c).doc(id).set(rest);n++}setNote('Импортировано записей: '+n)}catch(e){setNote('Ошибка импорта: '+(e.code||e.message))}};
    return}
   if(editing){side.innerHTML=editorHtml();bindEditor();return}
-  let items=st[tab].slice();const q=query.trim().toLowerCase();if(tab==='staff')items=items.filter(regMatch);
+  let items=st[tab].slice();const q=query.trim().toLowerCase();if(tab==='staff')items=items.filter(staffVisible);
   if(q)items=items.filter(o=>JSON.stringify(o).toLowerCase().includes(q));
-  if(tab==='staff')items.sort((a,b)=>(a.regUntil||'9999')<(b.regUntil||'9999')?-1:1);else items.sort((a,b)=>String(a.name).localeCompare(String(b.name),'ru'));
-  const nBad=(st.staff||[]).filter(workDone).length,nNone=(st.staff||[]).filter(o=>!o.workUntil).length;
-  const filt=tab==='staff'?`<div class="listhead" style="padding-top:0"><label for="regF" style="font-size:12px;color:var(--muted);white-space:nowrap">Работает до</label><select id="regF"><option value="">все сроки (${(st.staff||[]).length})</option>${nBad?`<option value="bad"${regMonth==='bad'?' selected':''}>срок уже прошёл (${nBad})</option>`:''}${monthOptions()}<option value="none"${regMonth==='none'?' selected':''}>без даты${nNone?' ('+nNone+')':''}</option></select><button class="btn sm" id="xlBtn" type="button" title="Скачать таблицу Excel">Скачать Excel</button></div>${regMonth?`<div class="note" style="color:var(--muted)">${regMonth.length===7?'Работают как минимум до конца выбранного месяца: ':'Показано: '}${items.length} из ${(st.staff||[]).length}. Остальные скрыты.</div>`:''}`:'';
+  if(tab==='staff')items.sort(regSortFn);else items.sort((a,b)=>String(a.name).localeCompare(String(b.name),'ru'));
+  const nExp=(st.staff||[]).filter(regExpired).length,nBad=(st.staff||[]).filter(workDone).length,nNone=(st.staff||[]).filter(o=>!o.workUntil).length;
+  const filt=tab==='staff'?`<div class="listhead" style="padding-top:0"><label for="regF" style="font-size:12px;color:var(--muted);white-space:nowrap">Работает до</label><select id="regF"><option value="">все сроки (${(st.staff||[]).length})</option>${nBad?`<option value="bad"${regMonth==='bad'?' selected':''}>срок уже прошёл (${nBad})</option>`:''}${monthOptions()}<option value="none"${regMonth==='none'?' selected':''}>без даты${nNone?' ('+nNone+')':''}</option></select><button class="btn sm" id="xlBtn" type="button" title="Скачать таблицу Excel">Скачать Excel</button></div><div class="listhead wrap" style="padding-top:0"><span style="font-size:12px;color:var(--muted)">Регистрация</span><span class="seg" role="group" aria-label="Порядок по сроку регистрации"><button type="button" data-sort="asc" aria-pressed="${regSort==='asc'}">скоро истекает</button><button type="button" data-sort="desc" aria-pressed="${regSort==='desc'}">дольше всех</button></span><label class="chk" for="hideExp"><input id="hideExp" type="checkbox"${hideExp?' checked':''}> скрыть истёкшие${nExp?' ('+nExp+')':''}</label></div>${regMonth?`<div class="note" style="color:var(--muted)">${regMonth.length===7?'Работают как минимум до конца выбранного месяца: ':'Показано: '}${items.length} из ${(st.staff||[]).length}. Остальные скрыты.</div>`:''}`:'';
   const head=`<div class="listhead"><input id="q" type="search" placeholder="Поиск" value="${esc(query)}">${perm.edit?`<button class="btn primary sm" id="addBtn" type="button">+ Добавить ${LABEL[tab]}</button>`:''}</div>`+filt;
   const emptyTxt={staff:'Сотрудников пока нет. Нажмите «Добавить» или кликните по карте.',competitors:'Конкурентов пока нет. Кликните по карте там, где стоит конкурент, и выберите «Конкурент».',landmarks:'Ориентиров пока нет. Кликните по карте и выберите «Ориентир», например «Кольцо» или «ЦУМ».'}[tab];
   side.innerHTML=head+`<div class="list">`+(items.length?items.map(o=>cardHtml(tab,o)).join(''):`<div class="empty">${emptyTxt}</div>`)+`</div>`;
   const qi=document.getElementById('q');qi.oninput=()=>{query=qi.value;renderSide();const n=document.getElementById('q');n.focus();n.setSelectionRange(n.value.length,n.value.length)};
   const ab=document.getElementById('addBtn');if(ab)ab.onclick=()=>startEdit(tab,null);
   const xb=document.getElementById('xlBtn');if(xb)xb.onclick=()=>exportXlsx(items);
+  side.querySelectorAll('[data-sort]').forEach(b=>b.onclick=()=>{regSort=b.dataset.sort;storeView();renderSide()});
+  const he=document.getElementById('hideExp');if(he)he.onchange=()=>{hideExp=he.checked;storeView();popup=null;renderSide();buildMarks();renderPop()};
   const rf=document.getElementById('regF');if(rf)rf.onchange=()=>{regMonth=rf.value;popup=null;renderSide();buildMarks();renderPop()};
   side.querySelectorAll('.card').forEach(c=>c.onclick=e=>{const id=c.dataset.id;const act=e.target.closest('[data-act]');
     if(act){e.stopPropagation();const a=act.dataset.act;if(a==='place')startPlacing(tab,id);if(a==='edit')startEdit(tab,id);return}
@@ -1351,7 +1422,7 @@ function cardHtml(coll,o){const sel=selected&&selected.id===o.id?' sel':'';const
   const btn=hasPos(o)?(coll==='landmarks'||!perm.move?'':`<button class="btn sm" data-act="place" type="button">Переместить</button> `)+(perm.edit?`<button class="btn sm" data-act="edit" type="button">Изменить</button>`:''):(perm.move&&(coll!=='landmarks'||perm.edit)?`<button class="btn sm primary" data-act="place" type="button">Поставить на карту</button>`:'');
   if(coll==='staff'){const c=regCls(o.regUntil);
     return `<div class="card${sel}" data-id="${esc(o.id)}"><div class="top"><b>${esc(o.name)}</b><span class="st ${c}">${o.regUntil?'до '+fmt(o.regUntil):'нет даты'}</span></div>
-     <div class="meta"><span>${esc(o.role||'—')}</span><span>${esc(o.spot||'место не указано')}</span>${o.workUntil?`<span>работает до ${fmt(o.workUntil)}</span>`:''}${pos}</div>
+     <div class="meta"><span>${esc(o.role||'—')}</span><span>${esc(o.spot||'место не указано')}</span>${o.workUntil?`<span>работает до ${fmt(o.workUntil)}</span>`:''}${pos}${planChip(o.id)}</div>
      <div class="meta"><span class="mono">${esc(o.phone||'')}</span><span class="spacer"></span>${btn}</div></div>`}
   return `<div class="card${sel}" data-id="${esc(o.id)}"><div class="top"><b>${esc(o.name)}</b>${pos}</div>${o.note?`<div class="meta">${esc(o.note)}</div>`:''}<div class="meta"><span class="spacer"></span>${btn}</div></div>`}
 
@@ -1365,7 +1436,8 @@ function editorHtml(){const {coll,o,isNew}=editing;const del=!isNew?`<button cla
     <div class="two"><label>Работает до<input id="f-workUntil" type="date" value="${esc(o.workUntil)}"></label><label>Регистрация до<input id="f-regUntil" type="date" value="${esc(o.regUntil)}"></label></div>
     <label>Телефон<input id="f-phone" value="${esc(o.phone)}" inputmode="tel"></label>
     <div class="two"><label>Адрес регистрации<input id="f-regAddr" value="${esc(o.regAddr)}"></label><label>Где живёт<input id="f-liveAddr" value="${esc(o.liveAddr)}"></label></div>
-    <label>Заметка<textarea id="f-note" rows="2">${esc(o.note)}</textarea></label>`;
+    <label>Заметка<textarea id="f-note" rows="2">${esc(o.note)}</textarea></label>
+    <label>Если место меняется, новое место действует<select id="f-mode"><option value="on">с ${fmt(planDay)} и дальше</option><option value="month">с ${fmt(planDay)} до конца ${MONTHS_IN[+planDay.slice(5,7)-1]}</option></select></label>`;
   else if(coll==='competitors')f=`
     <label>Кто / бренд<input id="f-name" required value="${esc(o.name)}" placeholder="например: промоутер «Ленты-Опт»"></label>
     <label>Где стоит<input id="f-spot" value="${esc(o.spot)}"></label>
@@ -1374,32 +1446,32 @@ function editorHtml(){const {coll,o,isNew}=editing;const del=!isNew?`<button cla
   else f=`<label>Название<input id="f-name" required value="${esc(o.name)}" placeholder="например: Кольцо, ЦУМ, Часы на Баумана"></label><label>Заметка<input id="f-note" value="${esc(o.note)}"></label>
     <label>Как показывать на карте<select id="f-icon"><option value="">Точка с подписью</option>${Object.keys(PH).map(k=>`<option value="${k}"${o.icon===k?' selected':''}>Фото: ${PHT[k]||k}</option>`).join('')}${Object.entries(ICONS).filter(([k])=>!PH[k]).map(([k,v])=>`<option value="${k}"${o.icon===k?' selected':''}>Рисунок: ${v.t}</option>`).join('')}</select></label>`;
   return `<form class="ed" id="edForm"><h2>${isNew?'Новый '+(coll==='landmarks'?'ориентир':coll==='staff'?'сотрудник':'конкурент'):'Изменить'}</h2>${f}
-    <div style="font-size:12px;color:var(--muted)">На карте: ${posTxt}</div>
+    <div style="font-size:12px;color:var(--muted)">На карте${coll==='staff'?' на '+fmt(planDay):''}: ${posTxt}</div>
     <div class="acts"><button class="btn primary" type="submit">Сохранить</button><button class="btn" type="button" id="cancelBtn">Отмена</button><span class="spacer"></span>${del}</div></form>`}
 const FIELDS={staff:['name','role','spot','workUntil','regUntil','phone','regAddr','liveAddr','note'],competitors:['name','spot','note','seen'],landmarks:['name','note','icon']};
 function readForm(){const {coll,o}=editing;const n={...o};FIELDS[coll].forEach(k=>{const el=document.getElementById('f-'+k);if(el)n[k]=el.value.trim()});return n}
 function bindEditor(){const {coll}=editing;
   document.getElementById('edForm').onsubmit=async e=>{e.preventDefault();const n=readForm();if(!n.name){document.getElementById('f-name').focus();return}
-    if(await save(coll,n)){selected={coll,id:n.id};editing=null;confirmDel=null;renderAll()}};
+    if(await (coll==='staff'?saveStaffForm(n,(document.getElementById('f-mode')||{}).value):save(coll,n))){selected={coll,id:n.id};editing=null;confirmDel=null;renderAll()}};
   document.getElementById('cancelBtn').onclick=()=>{editing=null;confirmDel=null;renderAll()};
   const mv=document.getElementById('mvBtn');if(mv)mv.onclick=()=>{editing.o=readForm();startPlacing(coll,editing.o.id,true)};
   const un=document.getElementById('unBtn');if(un)un.onclick=()=>{const n=readForm();delete n.lat;delete n.lon;editing.o=n;renderSide()};
   const d=document.getElementById('delBtn');if(d)d.onclick=async()=>{const id=editing.o.id;if(confirmDel!==id){confirmDel=id;renderSide();return}
     await remove(coll,id);editing=null;confirmDel=null;popup=null;renderAll()}}
 
-function startEdit(coll,id,pos){if(!perm.edit)return;tab=coll;confirmDel=null;placing=null;showBanner();
+function startEdit(coll,id,pos){if(!perm.edit)return;if(sideCollapsed)setCollapsed(false);tab=coll;confirmDel=null;placing=null;showBanner();
   const o=id?{...find(coll,id)}:{id:newId(),name:''};if(pos){o.lat=pos[0];o.lon=pos[1]}
   editing={coll,o,isNew:!id};popup=null;renderAll();setTimeout(()=>{const n=document.getElementById('f-name');if(n&&!n.value)n.focus()},0)}
 function startPlacing(coll,id,fromEditor){placing={coll,id,fromEditor};popup=null;stage.classList.add('placing');
   const o=fromEditor?editing.o:find(coll,id);showBanner(fromEditor?`Нажмите на карту, где стоит: ${esc(o&&o.name||'новая точка')}`:`Перетащите метку «${esc(o&&o.name||'')}» или нажмите на карту, где она теперь стоит`);renderPop();buildMarks()}
 function showBanner(html){const b=document.getElementById('banner');if(!html){const was=!b.hidden;b.hidden=true;stage.classList.remove('placing');if(was)buildMarks();return}
   b.innerHTML=`<span>${html}</span><button type="button" id="bCancel">Отмена</button>`;b.hidden=false;document.getElementById('bCancel').onclick=()=>{placing=null;showBanner()}}
-document.addEventListener('keydown',e=>{if(e.key==='Escape'){if(placing){placing=null;showBanner()}else if(popup){popup=null;renderPop()}}});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){if(pend){pend=null;document.getElementById('banner').hidden=true;recalc();renderAll()}else if(placing){placing=null;showBanner()}else if(popup){popup=null;renderPop()}}});
 
 async function mapClick(x,y){const [lat,lon]=fromXY(x,y);
   if(placing){const p=placing;placing=null;showBanner();
     if(p.fromEditor){editing.o.lat=lat;editing.o.lon=lon;renderAll();return}
-    const o=find(p.coll,p.id);if(o){await save(p.coll,{...o,lat,lon});selected={coll:p.coll,id:o.id};renderAll()}return}
+    const o=find(p.coll,p.id);if(o){selected={coll:p.coll,id:o.id};if(p.coll==='staff'){askMode(o.id,{lat,lon});return}await save(p.coll,{...o,lat,lon});renderAll()}return}
   if(popup){popup=null;renderPop();return}
   if(!perm.edit)return;
   const unplaced=st.staff.filter(o=>!hasPos(o));
@@ -1408,7 +1480,7 @@ async function mapClick(x,y){const [lat,lon]=fromXY(x,y);
    <div class="acts" style="margin-bottom:8px"><button class="btn primary sm" type="button" data-pa="putStaff">Поставить сюда</button></div>`:''}
    <div class="acts"><button class="btn sm" type="button" data-pa="newStaff">+ Новый сотрудник</button><button class="btn sm" type="button" data-pa="newComp" style="color:var(--comp)">+ Конкурент</button><button class="btn sm" type="button" data-pa="newLm">+ Ориентир</button></div>`,
    act:async a=>{if(a==='close'){popup=null;renderPop()}
-     if(a==='putStaff'){const id=document.getElementById('pickStaff').value;const o=find('staff',id);popup=null;if(o){await save('staff',{...o,lat,lon});selected={coll:'staff',id};tab='staff'}renderAll()}
+     if(a==='putStaff'){const id=document.getElementById('pickStaff').value;const o=find('staff',id);popup=null;if(o){selected={coll:'staff',id};tab='staff';askMode(id,{lat,lon});return}renderAll()}
      if(a==='newStaff')startEdit('staff',null,[lat,lon]);if(a==='newComp')startEdit('competitors',null,[lat,lon]);if(a==='newLm')startEdit('landmarks',null,[lat,lon])}};
   renderPop()}
 function openCard(coll,id){const o=find(coll,id);if(!o||!hasPos(o))return;selected={coll,id};const [x,y]=toXY(o.lat,o.lon);
@@ -1417,11 +1489,11 @@ function openCard(coll,id){const o=find(coll,id);if(!o||!hasPos(o))return;select
     <span>Где стоит</span><span>${esc(o.spot||'не указано')}</span>
     <span>Работает до</span><span>${fmt(o.workUntil)}</span>
     <span>Регистрация</span><span><span class="st ${c}">${o.regUntil?'до '+fmt(o.regUntil):'нет даты'}</span> ${o.regUntil?esc(regTxt(o.regUntil)):''}</span>
-    <span>Телефон</span><span class="mono">${esc(o.phone||'—')}</span></div>`}
+    <span>Телефон</span><span class="mono">${esc(o.phone||'—')}</span></div>${planHtml(o.id)}`}
   else body=`<div class="sub">${coll==='competitors'?'Конкурент':'Ориентир'}</div><div class="rows">${o.spot?`<span>Где</span><span>${esc(o.spot)}</span>`:''}${o.note?`<span>Заметка</span><span>${esc(o.note)}</span>`:''}${o.seen?`<span>Замечен</span><span>${fmt(o.seen)}</span>`:''}</div>`;
   popup={x,y,html:`<button class="x" type="button" data-pa="close" aria-label="Закрыть">×</button><h3>${esc(o.name)}</h3>${body}
     <div class="acts">${perm.edit?'<button class="btn sm" type="button" data-pa="edit">Изменить</button>':''}${coll==='landmarks'||!perm.move?'':'<button class="btn sm" type="button" data-pa="move">Переместить</button>'}${perm.edit?`<button class="btn sm danger" type="button" data-pa="del">${confirmDel===id?'Точно удалить?':'Удалить'}</button>`:''}${!perm.edit&&!perm.move?'<span class="sub">Только просмотр</span>':''}</div>`,
-    act:async a=>{if(a==='close'){popup=null;selected=null;renderAll()}if(a==='edit'&&perm.edit)startEdit(coll,id);if(a==='move'&&coll!=='landmarks'&&perm.move)startPlacing(coll,id);
+    act:async a=>{if(a.startsWith('go:')){setDay(a.slice(3));return}if(coll==='staff'&&a.startsWith('rmplan:')&&perm.move){const d=a.slice(7);const r=findRaw('staff',id);if(r)await save('staff',{...r,plan:planOf(r).filter(e=>e.from!==d)});const n=find('staff',id);if(n&&hasPos(n))openCard(coll,id);else{popup=null;renderAll()}return}if(a==='close'){popup=null;selected=null;renderAll()}if(a==='edit'&&perm.edit)startEdit(coll,id);if(a==='move'&&coll!=='landmarks'&&perm.move)startPlacing(coll,id);
       if(a==='del'){if(confirmDel!==id){confirmDel=id;openCard(coll,id);return}confirmDel=null;popup=null;selected=null;await remove(coll,id);renderAll()}}};
   tab=coll;if(!editing)renderSide();buildMarks();renderPop()}
 function renderPop(){popWrap.innerHTML='';if(!popup)return;const el=document.createElement('div');el.className='pop';el.innerHTML=popup.html;
@@ -1436,6 +1508,20 @@ function setTheme(t){document.documentElement.setAttribute('data-map',t);documen
 let th='light';try{th=localStorage.getItem('kzn-map-theme')||'light'}catch(e){}
 setTheme(th);document.getElementById('themeBtn').onclick=()=>setTheme(document.documentElement.getAttribute('data-map')==='dark'?'light':'dark');
 
+function monthSel(){const s=document.getElementById('planMonth');const t=new Date();const cur=planDay.slice(0,7);const ks=new Set([cur]);
+  for(let i=-2;i<12;i++)ks.add(isoD(new Date(t.getFullYear(),t.getMonth()+i,1)).slice(0,7));
+  s.innerHTML=[...ks].sort().map(k=>{const [y,m]=k.split('-');return `<option value="${k}"${k===cur?' selected':''}>${MONTHS[+m-1]} ${y}</option>`}).join('')}
+function setDay(d){if(!/^\d{4}-\d{2}-\d{2}$/.test(d||''))return;planDay=d;document.getElementById('planDate').value=d;monthSel();
+  document.getElementById('when').classList.toggle('other',d!==isoD(new Date()));
+  popup=null;pend=null;placing=null;showBanner();recalc();renderAll()}
+document.getElementById('planDate').onchange=e=>setDay(e.target.value);
+document.getElementById('dPrev').onclick=()=>setDay(addDays(planDay,-1));
+document.getElementById('dNext').onclick=()=>setDay(addDays(planDay,1));
+document.getElementById('dToday').onclick=()=>setDay(isoD(new Date()));
+document.getElementById('planMonth').onchange=e=>{const k=e.target.value,t=isoD(new Date());setDay(k===t.slice(0,7)?t:k+'-01')};
+document.getElementById('planDate').value=planDay;monthSel();
+document.getElementById('sideBtn').onclick=()=>setCollapsed(!sideCollapsed);
+if(sideCollapsed)setCollapsed(true);
 buildLabels();home();renderAll();
 </script>
 
