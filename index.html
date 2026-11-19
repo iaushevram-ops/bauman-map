@@ -67,6 +67,23 @@ svg#map{position:absolute;inset:0;width:100%;height:100%;display:block}
 .bd{fill:var(--bld);stroke:var(--bld-edge);stroke-width:1px;vector-effect:non-scaling-stroke}
 .kb{fill:var(--kbld);stroke:var(--bld-edge);stroke-width:1px;vector-effect:non-scaling-stroke}
 .towers rect{fill:var(--wall)}
+/* Спасская башня и памятник Мусе Джалилю (рисунки сбоку) */
+.lk .lk-sh{fill:rgba(40,35,30,.14)}
+.lk .lk-w{fill:#f6f2e9;stroke:#b9ad96;stroke-width:.12}
+.lk .lk-c{fill:#ddd3c1;stroke:#b9ad96;stroke-width:.08}
+.lk .lk-e{stroke:#cfc5b2;stroke-width:.1;fill:none}
+.lk .lk-hole{fill:#4b4238}
+.lk .lk-t{fill:#3f7a5c;stroke:#2c5a43;stroke-width:.1}
+.lk .lk-t2{fill:#2f6249}
+.lk .lk-g{stroke:#c9a23a;stroke-width:.18;fill:none}
+.lk .lk-star{fill:#f0c64a;stroke:#9a7417;stroke-width:.08}
+.lk .lk-s1{fill:#c7bdb1;stroke:#a89c8e;stroke-width:.06}
+.lk .lk-s2{fill:#b5a99b;stroke:#a89c8e;stroke-width:.06}
+.lk .lk-p{fill:#7a5f57;stroke:#5e4842;stroke-width:.08}
+.lk .lk-b{stroke:#5d4a37;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.lk .lk-bf{fill:#5d4a37}
+.lk .lk-hl{fill:#9a7c5a}
+.lk .lk-wire{stroke:#9aa0a6;stroke-width:.07;fill:none;stroke-dasharray:.15 .1}
 .wall{fill:none;stroke:var(--wall);stroke-linecap:square;vector-effect:non-scaling-stroke}
 .zebra line{stroke:var(--zebra);stroke-width:4;stroke-dasharray:1 1}
 .hn{position:absolute;left:0;top:0;font-size:10px;font-weight:600;color:var(--hn);pointer-events:none;transform:translate(-50%,-50%);white-space:nowrap}
@@ -2013,6 +2030,39 @@ addPath('kb',det.K,true);addPath('bd',det.B,true);addPath('bd',det3.E,true);
  world.insertAdjacentHTML('beforeend',`<path class="stairs-b" d="${d}"/><path class="stairs-s" d="${d}"/>`)}
 const pZ=addPath('wall',det.Z);
 {const g=document.createElementNS(NS,'g');g.setAttribute('class','towers');g.innerHTML=det.T.map(p=>`<rect x="${(p[0]-3).toFixed(1)}" y="${(p[1]-3).toFixed(1)}" width="6" height="6"/>`).join('');world.appendChild(g)}
+// Спасская башня и памятник Мусе Джалилю — рисунки «сбоку», растут вверх от точки на земле (1 ед. ≈ 2,2 м).
+// Башня встаёт на ближайший квадратик башни на стене, памятник — над лестницей у Ивановского спуска.
+const LMK=(()=>{const sp=toXY(55.79654,49.1082);let best=null,bd=15;
+  for(const p of det.T){const d=Math.hypot(p[0]-sp[0],p[1]-sp[1]);if(d<bd){bd=d;best=p}}
+  return {spas:best?[best[0],best[1]+3]:sp,jalil:toXY(55.79612,49.10852)}})();
+{const [x,y]=LMK.spas,[jx,jy]=LMK.jalil;
+ const arch=(cx,w,y0,y1)=>`<path class="lk-hole" d="M${cx-w/2} ${y0}V${y1+w/2}A${w/2} ${w/2} 0 0 1 ${cx+w/2} ${y1+w/2}V${y0}Z"/>`;
+ const star=(cx,cy,r)=>'<polygon class="lk-star" points="'+Array.from({length:10},(_,i)=>{const a=-Math.PI/2+i*Math.PI/5,q=i%2?r*.42:r;return (cx+q*Math.cos(a)).toFixed(2)+','+(cy+q*Math.sin(a)).toFixed(2)}).join(' ')+'"/>';
+ const g=document.createElementNS(NS,'g');g.setAttribute('class','lk');
+ g.innerHTML=
+  `<g transform="translate(${x.toFixed(1)} ${y.toFixed(1)})"><title>Спасская башня — главная проездная башня Кремля, 47 м</title>`+
+  `<path class="lk-sh" d="M-3.2 0L3.2 0L12 -2.6L6 -3.6Z"/>`+
+  `<rect class="lk-w" x="-3.2" y="-5.6" width="6.4" height="5.6"/>`+arch(0,2,0,-2.6)+
+  `<rect class="lk-c" x="-3.5" y="-6" width="7" height=".45"/>`+
+  `<rect class="lk-w" x="-2.5" y="-8.6" width="5" height="2.6"/>`+arch(0,1,-6.6,-7.9)+
+  `<rect class="lk-c" x="-2.8" y="-9" width="5.6" height=".4"/>`+
+  `<rect class="lk-w" x="-2.4" y="-11.8" width="4.8" height="2.8"/><path class="lk-e" d="M-1.2 -9V-11.8M1.2 -9V-11.8"/>`+arch(0,.8,-9.6,-11.1)+
+  `<rect class="lk-c" x="-2.6" y="-12.2" width="5.2" height=".4"/>`+
+  `<rect class="lk-w" x="-1.9" y="-14.6" width="3.8" height="2.4"/>`+arch(-1.05,.6,-12.4,-14)+arch(0,.6,-12.4,-14)+arch(1.05,.6,-12.4,-14)+
+  `<rect class="lk-c" x="-2.1" y="-15" width="4.2" height=".4"/>`+
+  `<path class="lk-t" d="M-2 -15L0 -20.3L2 -15Z"/><path class="lk-t2" d="M0 -15L0 -20.3L2 -15Z"/>`+
+  `<path class="lk-g" d="M0 -20.3V-21.2"/>`+star(0,-21.7,.6)+`</g>`+
+  `<g transform="translate(${jx.toFixed(1)} ${jy.toFixed(1)})"><title>Памятник Мусе Джалилю</title>`+
+  `<ellipse class="lk-sh" cx="1.2" cy="-.2" rx="2.6" ry=".7"/>`+
+  `<rect class="lk-s1" x="-2" y="-.3" width="4" height=".3"/><rect class="lk-s2" x="-1.5" y="-.6" width="3" height=".3"/>`+
+  `<rect class="lk-p" x="-.65" y="-1.9" width="1.3" height="1.3"/>`+
+  `<g transform="translate(0 -1.9)"><path class="lk-b" d="M-.4 0L-.25 -.9L-.14 -1.66M.43 0L.25 -.9L.14 -1.66" stroke-width=".36"/>`+
+  `<path class="lk-bf" d="M-.29 -1.58L.29 -1.58L.47 -2.74L-.47 -2.74Z"/>`+
+  `<path class="lk-b" d="M-.4 -2.66L-.72 -3.17L-.32 -3.67M.4 -2.66L.86 -2.38L1 -3.1" stroke-width=".29"/>`+
+  `<circle class="lk-bf" cx="0" cy="-3.1" r=".25"/>`+
+  `<path class="lk-hl" d="M.08 -1.7L.28 -1.7L.38 -2.6L.16 -2.6Z"/>`+
+  `<path class="lk-wire" d="M-.36 -3.6L0 -2.23L.5 -1.8L.94 -3.1M-.5 -1.1L.45 -1.4"/></g></g>`;
+ world.appendChild(g)}
 const zebra=[];
 {const cars=[...geo.M,...geo.S].flatMap(f=>f.pts.slice(1).map((p,i)=>[f.pts[i],p]));
  const baum=geo.P.filter(f=>f.n==='улица Баумана').flatMap(f=>f.pts.slice(1).map((p,i)=>[f.pts[i],p]));
@@ -2159,6 +2209,7 @@ function buildLabels(){labelsEl.innerHTML='';lblEls=[];
   for(const b of det.B){if(!b.num)continue;const c=centroid(b.pts);const el=document.createElement('div');el.className='hn '+b.code;el.textContent=b.num;
     labelsEl.appendChild(el);lblEls.push({el,b:{x:c[0],y:c[1],c:'H',size:size(b.pts)},w:0})}
   for(const b of det.K){if(!b.code)continue;const c=centroid(b.pts);const el=document.createElement('div');el.className='kname';el.textContent=b.code;labelsEl.appendChild(el);lblEls.push({el,b:{x:c[0],y:c[1],c:'KN'},w:0})}
+  for(const [n,p,h] of [['Спасская башня',LMK.spas,23.5],['Муса Джалиль',LMK.jalil,6.4]]){const el=document.createElement('div');el.className='kname';el.textContent=n;labelsEl.appendChild(el);lblEls.push({el,b:{x:p[0],y:p[1]-h,c:'KN'},w:0})}
   {const el=document.createElement('div');el.className='kname';el.textContent='Лестница';labelsEl.appendChild(el);lblEls.push({el,b:{x:1392*K,y:-1313,c:'KN'},w:0})}
   {const el=document.createElement('div');el.className='kname big';el.textContent='Казанский Кремль';labelsEl.appendChild(el);const [x,y]=toXY(55.7985,49.1055);lblEls.push({el,b:{x,y,c:'KB'},w:0})}
   for(const [n,u,v] of ENTR){const el=document.createElement('div');el.className='entr';el.innerHTML='<i>М</i>'+(n?'<b>'+n+'</b>':'');el.title=n?'Вход '+n:'Вход в метро';labelsEl.appendChild(el);lblEls.push({el,b:{x:v*K,y:-u,c:'E'},w:0})}
